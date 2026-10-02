@@ -57,3 +57,29 @@ class TestCli:
         path = write(tmp_path, [synthetic([True] * 5)])
         assert main([path, "--greek"]) == 0
         assert "unique" in capsys.readouterr().out
+
+
+class TestModuleEntryPoint:
+    """`python -m greekscan` is documented, so it is tested.
+
+    CI caught its absence once: the package had no __main__.py, so the
+    invocation in the README failed while every in-process test passed.
+    """
+
+    def test_running_the_module_scans_the_sample_corpus(self):
+        import os
+        import pathlib
+        import subprocess
+        import sys
+
+        root = pathlib.Path(__file__).resolve().parent.parent
+        env = dict(os.environ, PYTHONPATH=str(root / "src"), PYTHONIOENCODING="utf-8")
+        done = subprocess.run(
+            [sys.executable, "-m", "greekscan", str(root / "corpus" / "sample.txt")],
+            capture_output=True,
+            text=True,
+            env=env,
+            cwd=root,
+        )
+        assert done.returncode == 0, done.stderr
+        assert "scanned uniquely" in done.stdout
