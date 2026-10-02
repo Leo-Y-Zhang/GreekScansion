@@ -1,0 +1,6 @@
+# Sample corpus: three openings of Greek epic that any edition will confirm.
+# Homer, Iliad 1.1-1.2
+μῆνιν ἄειδε θεὰ Πηληϊάδεω Ἀχιλῆος
+οὐλομένην, ἣ μυρί' Ἀχαιοῖς ἄλγε' ἔθηκε,
+# Homer, Odyssey 1.1
+ἄνδρα μοι ἔννεπε, μοῦσα, πολύτροπον, ὃς μάλα πολλὰ

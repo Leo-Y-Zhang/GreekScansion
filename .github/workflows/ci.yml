@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        # The floor and the ceiling, so "3.10 or newer" is tested rather than claimed.
+        python: ["3.10", "3.13"]
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Install the test runner only
+        run: python -m pip install --quiet pytest
+      - name: Tests
+        run: python -m pytest
+      - name: Gate - the README's figures must still be the measured ones
+        run: python verify_all.py
+      - name: The CLI runs end to end under every synizesis policy
+        run: |
+          for mode in never minimal always; do
+            PYTHONPATH=src python -m greekscan corpus/sample.txt --synizesis "$mode"
+          done
+      - name: No runtime dependencies
+        # Checked by regex rather than tomllib, which only exists from 3.11 and
+        # would quietly skip this job on the 3.10 floor.
+        run: |
+          python - <<'EOF'
+          import re, sys
+          text = open("pyproject.toml", encoding="utf-8").read()
+          match = re.search(r"^dependencies\s*=\s*\[(.*?)\]", text, re.M | re.S)
+          if match is None:
+              sys.exit("pyproject.toml declares no dependencies key to check")
+          if match.group(1).strip():
+              sys.exit("runtime dependencies appeared: " + match.group(1).strip())
+          print("no runtime dependencies, as documented")
+          EOF

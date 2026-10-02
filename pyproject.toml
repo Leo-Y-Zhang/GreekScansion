@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "greekscan"
+version = "0.1.0"
+description = "Scans Classical Greek dactylic hexameter and reports only what the metre itself settles."
+readme = "README.md"
+requires-python = ">=3.10"
+# The licence is bespoke and source-available; point at the file rather than
+# naming an SPDX identifier that would be wrong.
+license = { file = "LICENSE" }
+authors = [{ name = "Leo Y. Zhang" }]
+keywords = ["classics", "greek", "metre", "scansion", "hexameter"]
+dependencies = []
+
+[project.scripts]
+greekscan = "greekscan.cli:main"
+
+[project.optional-dependencies]
+dev = ["pytest>=8"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src", "."]
+testpaths = ["tests"]
+addopts = "-q"
