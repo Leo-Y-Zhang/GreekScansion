@@ -5,14 +5,18 @@ can be stated without reference to any particular poem, so none of them depends
 on quoting a text correctly.
 """
 
+import pytest
+
 from greekscan.orthography import is_diphthong, letters
 from greekscan.quantity import EITHER, HEAVY, LIGHT, weight, weights
 from greekscan.syllable import syllabify
 
 
 class TestLetters:
-    def test_accents_and_breathings_are_discarded(self):
-        assert [l.char for l in letters("μῆνιν")] == ["μ", "η", "ν", "ι", "ν"]
+    def test_acute_grave_and_breathings_are_discarded(self):
+        seq = letters("ἄνθρωπὸς")
+        assert [l.char for l in seq] == list("ανθρωποσ")
+        assert not any(l.marks for l in seq)
 
     def test_final_sigma_folds_to_sigma(self):
         assert [l.char for l in letters("ος")] == ["ο", "σ"]
@@ -35,6 +39,12 @@ class TestLetters:
 
 
 class TestDiphthongs:
+    def test_a_space_prevents_a_diphthong(self):
+        first, second = letters("ε ι")
+        assert not is_diphthong(first, second)
+        assert len(syllabify("ε ι")) == 2
+        assert weights("ε ι") == [LIGHT, EITHER]
+
     def test_a_real_diphthong_is_one_nucleus(self):
         seq = letters("οι")
         assert is_diphthong(seq[0], seq[1])
@@ -84,6 +94,11 @@ class TestWeight:
 
     def test_long_vowel_is_heavy(self):
         assert weight(syllabify("τω")[0]) == HEAVY
+
+    @pytest.mark.parametrize("vowel", ("α̂", "ᾶ", "ᾶ", "ῖ", "ῦ"))
+    def test_a_circumflex_marks_a_long_vowel(self, vowel):
+        assert letters(vowel)[0].explicitly_long
+        assert weights(vowel) == [HEAVY]
 
     def test_a_closed_syllable_is_heavy_whatever_its_vowel(self):
         assert weight(syllabify("εστι")[0]) == HEAVY

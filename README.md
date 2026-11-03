@@ -16,13 +16,14 @@ either satisfies that grammar at every position or it does not. When exactly
 one reading of a line fits, **the line has scanned itself**, and that reading
 is a certificate: no published scansion is required to confirm it.
 
-So the program has three answers, and the interesting ones are not the first:
+The program reports these outcomes:
 
 | verdict | meaning |
 | --- | --- |
 | `unique` | one reading fits. The metre decided; this is a certificate. |
 | `ambiguous` | several readings fit. The spelling genuinely does not say which. |
 | `unscannable` | no reading fits. Either the text needs something this scanner does not do, or a rule here is wrong. Both are findings. |
+| `search incomplete` | more than 16 candidate synizesis sites; search was not attempted. |
 
 An `unscannable` line is never quietly given a reading, and an `ambiguous` line
 is never quietly given its first one.
@@ -32,7 +33,8 @@ is never quietly given its first one.
 Syllable weight follows from the phonology: a syllable is heavy if its vowel is
 long or a diphthong, or if a consonant closes it; light if a short vowel stands
 open. The line is syllabified as one continuous string of sound, not word by
-word, because Greek metre treats the verse as a phonological whole.
+word, because Greek metre treats the verse as a phonological whole; diphthongs
+and synizesis form only within words.
 
 Three things are genuinely undecidable from the spelling. Each is carried
 forward as "either", for the metre to resolve:
@@ -48,8 +50,10 @@ A fourth case is worse, because it changes the *number* of syllables:
 **synizesis**, two adjacent vowels inside a word run together into one long
 syllable. `Πηληϊάδεω` in *Iliad* 1.1 is the standard example — its `-εω` is one
 syllable, and nothing in the spelling says so. The scanner therefore
-syllabifies the line every way the spelling allows and searches over all of
-them, under one of three policies:
+enumerates every non-overlapping subset of candidate synizesis sites up to a
+limit of 16 sites (at most 65,536 subsets), and searches the resulting readings
+under one of three policies; above the limit it reports `search incomplete`
+instead of attempting enumeration:
 
 - `never` — take the spelling at face value.
 - `minimal` (default) — what an editor does: prefer the plain reading, and run
@@ -93,14 +97,16 @@ python -m greekscan corpus/sample.txt --only unscannable
 python -m greekscan -  < your-text.txt
 ```
 
-Input is UTF-8, one verse line per line; `#` starts a comment. Output is ASCII
-(`-` heavy, `u` light, `?` undecided) because a Windows console is cp1252 and
-raises on Greek; `--greek` adds the text when the console can take it.
+Input is UTF-8, one verse line per line; everything from `#` to the end of a line
+is a comment. Output is ASCII (`-` heavy, `u` light, `?` undecided) because a
+Windows console is cp1252 and raises on Greek; `--greek` adds the text when the
+console can take it.
 
-Accents, breathings and the diaeresis are read for what they tell the metre and
-then discarded. The iota subscript is kept — it marks a long vowel. A macron or
-breve is honoured where an editor supplied one. Written elision (`μυρί'`) is
-handled, because the vowel is simply not there to count.
+Acute and grave accents and breathings are discarded; a circumflex marks a long
+vowel, and a diaeresis prevents a diphthong. The iota subscript is kept — it
+marks a long vowel. A macron or breve is honoured where an editor supplied one.
+Written elision (`μυρί'`) is handled, because the vowel is simply not there to
+count.
 
 ## What is not verified
 
