@@ -16,9 +16,9 @@ rather than resolved:
     one syllable in Iliad 1.1. Since the spelling never marks it, the line is
     syllabified both ways and the metre is left to choose.
 
-`syllabify` gives the plain reading; `variants` gives every reading. The second
-is what the scanner uses, which is why it can report *where* synizesis happened
-instead of being defeated by it.
+`syllabify` gives the plain reading; `variants` gives every reading up to a
+candidate-site limit. The scanner uses the latter, which is why it can report
+*where* synizesis happened instead of being defeated by it.
 """
 
 from __future__ import annotations
@@ -35,9 +35,7 @@ from .orthography import (
     letters,
 )
 
-#: Beyond this many candidate sites, every subset is not enumerated; see
-#: `variants`. Six sites is 64 readings, which is already generous for a line.
-MAX_SYNIZESIS_SITES = 6
+MAX_SYNIZESIS_SITES = 16
 
 
 @dataclass
@@ -165,24 +163,16 @@ def syllabify(line: str) -> list[Syllable]:
 
 
 def variants(line: str) -> list[list[Syllable]]:
-    """Every reading of the line the spelling allows, plainest first.
-
-    When there are more candidate synizesis sites than `MAX_SYNIZESIS_SITES`,
-    only the plain reading and the single-site readings are produced. That is a
-    deliberate cap, not an oversight: it is reported by `capped_sites`, and a
-    line that needs more than six simultaneous synizeses is not a line this
-    scanner should be claiming anything about.
-    """
+    """Every reading, plainest first; raise ValueError above the site limit."""
     seq = letters(line)
     base = _nuclei(seq)
     sites = synizesis_sites(seq, base)
-
     if len(sites) > MAX_SYNIZESIS_SITES:
-        subsets: list[tuple[int, ...]] = [()] + [(s,) for s in sites]
-    else:
-        subsets = []
-        for size in range(len(sites) + 1):
-            subsets.extend(combinations(sites, size))
+        raise ValueError(f"too many synizesis sites ({len(sites)}; limit {MAX_SYNIZESIS_SITES})")
+
+    subsets = []
+    for size in range(len(sites) + 1):
+        subsets.extend(combinations(sites, size))
 
     readings = []
     seen: set[tuple] = set()
@@ -200,6 +190,6 @@ def variants(line: str) -> list[list[Syllable]]:
 
 
 def capped_sites(line: str) -> int:
-    """How many synizesis sites a line has, for reporting the cap honestly."""
+    """How many candidate synizesis sites a line has."""
     seq = letters(line)
     return len(synizesis_sites(seq, _nuclei(seq)))

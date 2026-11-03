@@ -25,10 +25,28 @@ class TestCli:
         assert main([path]) == 0
         assert "1 unscannable" in capsys.readouterr().out
 
+    @pytest.mark.parametrize("options", ([], ["--quiet"], ["--only", "search incomplete"]))
+    def test_too_many_sites_are_reported_separately(self, tmp_path, capsys, options):
+        path = write(tmp_path, [synthetic([True] * 5), "τεω" * 40])
+        assert main([path, *options]) == 0
+        out = capsys.readouterr().out
+        assert "2 lines: 1 scanned uniquely, 0 ambiguous, 0 unscannable, 1 search incomplete" in out
+        if "--quiet" not in options:
+            assert "search incomplete" in out.splitlines()[0 if "--only" in options else 1]
+            assert "too many synizesis sites (40; limit 16); search not attempted" in out
+
     def test_comments_and_blank_lines_are_skipped(self, tmp_path, capsys):
         path = write(tmp_path, ["# a note", "", synthetic([True] * 5)])
         assert main([path]) == 0
         assert "1 lines: 1 scanned uniquely" in capsys.readouterr().out
+
+    def test_inline_comments_are_stripped(self, tmp_path, capsys):
+        line = synthetic([True] * 5)
+        path = write(tmp_path, [line + " # τετω # another comment"])
+        assert main([path, "--greek"]) == 0
+        out = capsys.readouterr().out
+        assert "1 lines: 1 scanned uniquely" in out
+        assert out.splitlines()[0].endswith(line)
 
     def test_only_filters_the_listing_but_not_the_summary(self, tmp_path, capsys):
         path = write(tmp_path, [synthetic([True] * 5), "τετω"])

@@ -4,9 +4,10 @@ The public surface is deliberately small:
 
     from greekscan import scan, scan_all, weights, syllabify
 
-`scan` returns a Result whose `verdict` is "unique", "ambiguous" or
-"unscannable". "unique" means the metre admitted exactly one reading of the
-line, which is the only sense in which this program claims anything.
+`scan` returns a Result whose `verdict` is "unique", "ambiguous",
+"unscannable" or "search incomplete". "unique" means the metre admitted exactly
+one reading of the line, which is the only sense in which this program claims
+anything.
 """
 
 from .metre import (

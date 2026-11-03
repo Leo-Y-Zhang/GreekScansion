@@ -7,7 +7,7 @@ corrupts a correct weight sequence and insists the scanner then refuses it,
 because a checker that accepts everything certifies nothing.
 """
 
-import random
+from itertools import product
 
 import pytest
 
@@ -99,11 +99,9 @@ class TestScanning:
 
 
 class TestRoundTrip:
-    @pytest.mark.parametrize("seed", range(40))
-    def test_every_pattern_is_recovered_from_its_own_line(self, seed):
-        rng = random.Random(seed)
-        dactyls = [rng.random() < 0.5 for _ in range(5)]
-        final_heavy = rng.random() < 0.5
+    @pytest.mark.parametrize("dactyls", product((True, False), repeat=5))
+    @pytest.mark.parametrize("final_heavy", (True, False))
+    def test_every_pattern_is_recovered_from_its_own_line(self, dactyls, final_heavy):
         result = scan(synthetic(dactyls, final_heavy))
         expected = "".join("D" if d else "S" for d in dactyls) + "|"
         assert result.unique, f"{expected} did not scan uniquely"

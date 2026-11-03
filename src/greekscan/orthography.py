@@ -1,11 +1,10 @@
 """Reading Greek text as sounds rather than as glyphs.
 
-Scansion depends on the phonology, not on the editor's accents, so the first
-job is to discard everything that cannot change syllable weight while keeping
-the three diacritics that can: the iota subscript, which marks a long vowel; a
-macron or breve, where an editor has supplied the length outright; and the
-diaeresis, which states that two vowels are *not* a diphthong and so changes
-the syllable count.
+Scansion depends on the phonology, so the first job is to discard everything
+that cannot change syllable weight while keeping the diacritics that can:
+the iota subscript and circumflex, which mark a long vowel; a macron or breve,
+where an editor has supplied the length outright; and the diaeresis, which
+states that two vowels are *not* a diphthong and so changes the syllable count.
 
 Everything here is deliberately conservative. Where a decision belongs to the
 metre rather than to the spelling - whether a dichronon is long, whether a stop
@@ -24,7 +23,8 @@ YPOGEGRAMMENI = "ͅ"
 MACRON = "̄"
 BREVE = "̆"
 DIAERESIS = "̈"
-KEPT_MARKS = frozenset({YPOGEGRAMMENI, MACRON, BREVE, DIAERESIS})
+CIRCUMFLEXES = frozenset({"\u0302", "\u0342"})
+KEPT_MARKS = frozenset({YPOGEGRAMMENI, MACRON, BREVE, DIAERESIS}) | CIRCUMFLEXES
 
 VOWELS = frozenset("αεηιουω")
 
@@ -66,7 +66,11 @@ class Letter:
 
     @property
     def explicitly_long(self) -> bool:
-        return YPOGEGRAMMENI in self.marks or MACRON in self.marks
+        return (
+            YPOGEGRAMMENI in self.marks
+            or MACRON in self.marks
+            or any(mark in CIRCUMFLEXES for mark in self.marks)
+        )
 
     @property
     def explicitly_short(self) -> bool:
@@ -123,7 +127,7 @@ def is_diphthong(first: Letter, second: Letter) -> bool:
     A diaeresis on the second vowel, or an explicit length mark on the first,
     says the editor read them apart.
     """
-    if not (first.is_vowel and second.is_vowel):
+    if not (first.is_vowel and second.is_vowel) or first.word_final:
         return False
     if second.blocks_diphthong or first.explicitly_long or first.explicitly_short:
         return False

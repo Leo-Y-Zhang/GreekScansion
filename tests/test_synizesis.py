@@ -6,10 +6,12 @@ and lets the metre decide - and the policy for how freely it may do so is the
 project's main experimental variable.
 """
 
+from time import perf_counter
+
 import pytest
 
 from greekscan.metre import SYNIZESIS_MODES, scan
-from greekscan.syllable import capped_sites, syllabify, variants
+from greekscan.syllable import MAX_SYNIZESIS_SITES, capped_sites, syllabify, variants
 
 # "δεω" is the classic case: Πηληϊάδεω scans with -εω as one syllable.
 EPSILON_OMEGA = "δεω"
@@ -62,8 +64,51 @@ class TestVariants:
             s.text for s in variants(EPSILON_OMEGA)[0]
         ]
 
+    def test_more_than_six_sites_still_enumerates_every_subset(self):
+        line = "τεωτεωτωωτωωτωωτωωτωω"
+        assert capped_sites(line) == 7
+        assert len(variants(line)) == 2 ** 7
+
+    def test_the_sixteen_site_limit_is_inclusive(self):
+        assert MAX_SYNIZESIS_SITES == 16
+        line = "ω" * 17
+        assert capped_sites(line) == 16
+        # Non-overlapping subsets of 16 consecutive sites: Fibonacci(18).
+        assert len(variants(line)) == 2584
+
+    @pytest.mark.parametrize("sites", (17, 40))
+    def test_above_the_limit_never_enumerates_subsets(self, sites, monkeypatch):
+        def unexpected_enumeration(*args):
+            pytest.fail("over-limit lines must not enumerate subsets")
+
+        monkeypatch.setattr("greekscan.syllable.combinations", unexpected_enumeration)
+        with pytest.raises(ValueError, match="too many synizesis sites"):
+            variants("τεω" * sites)
+
 
 class TestPolicy:
+    @pytest.mark.parametrize("mode", SYNIZESIS_MODES)
+    @pytest.mark.parametrize("sites", (17, 40))
+    def test_above_the_limit_returns_incomplete_quickly(self, mode, sites, monkeypatch):
+        def unexpected_enumeration(*args):
+            pytest.fail("over-limit lines must not request variants")
+
+        monkeypatch.setattr("greekscan.metre.variants", unexpected_enumeration)
+        started = perf_counter()
+        result = scan("τεω" * sites, mode)
+        assert perf_counter() - started < 1.0
+        assert result.sites == sites
+        assert result.search_incomplete and result.verdict == "search incomplete"
+        assert not result.unique and not result.ambiguous and not result.unscannable
+        assert result.readings == [] and result.synizesis == [] and result.feet() == ""
+        assert f"too many synizesis sites ({sites}; limit 16)" in result.reason
+
+    @pytest.mark.parametrize("mode", ("minimal", "always"))
+    def test_more_than_six_sites_can_scan_with_two_merges(self, mode):
+        result = scan("τεωτεωτωωτωωτωωτωωτωω", mode)
+        assert result.unique and result.feet() == "SSSSS|"
+        assert result.synizesis == ["τεω", "τεω"]
+
     def test_an_unknown_mode_is_refused(self):
         with pytest.raises(ValueError):
             scan("τωτετε", synizesis="sometimes")
@@ -74,11 +119,11 @@ class TestPolicy:
 
     def test_minimal_does_not_make_a_clean_line_ambiguous(self):
         """The point of minimal: never spend a merge that is not needed."""
-        line = "τωτεωτε τωτετε τωτετε τωτετε τωτετε τωτε"
+        line = "τωετε τωτετε τωτετε τωτετε τωτετε τωτε"
         plain = scan(line, "never")
         minimal = scan(line, "minimal")
-        if plain.unique:
-            assert minimal.unique and minimal.feet() == plain.feet()
+        assert plain.unique
+        assert minimal.unique and minimal.feet() == plain.feet()
 
     def test_always_offers_at_least_as_many_readings_as_minimal(self):
         line = "τωτεωτε τωτετε τωτετε τωτετε τωτετε τωτε"
