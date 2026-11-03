@@ -24,7 +24,7 @@ def _read_lines(path: str) -> list[str]:
     else:
         with open(path, encoding="utf-8") as handle:
             data = handle.read()
-    return [l for l in (line.strip() for line in data.splitlines()) if l and not l.startswith("#")]
+    return [l for l in (line.split("#", 1)[0].strip() for line in data.splitlines()) if l]
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -34,7 +34,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument("path", help="UTF-8 file of verse, one line per line; - for stdin")
     parser.add_argument("--greek", action="store_true", help="also print the Greek text")
-    parser.add_argument("--only", choices=("unique", "ambiguous", "unscannable"),
+    parser.add_argument("--only", choices=("unique", "ambiguous", "unscannable", "search incomplete"),
                         help="print only lines with this verdict")
     parser.add_argument("--quiet", action="store_true", help="print the summary alone")
     parser.add_argument("--synizesis", choices=SYNIZESIS_MODES, default="minimal",
@@ -46,7 +46,7 @@ def main(argv: list[str] | None = None) -> int:
         print("no verse found", file=sys.stderr)
         return 2
 
-    counts = {"unique": 0, "ambiguous": 0, "unscannable": 0}
+    counts = {"unique": 0, "ambiguous": 0, "unscannable": 0, "search incomplete": 0}
     for index, result in enumerate(results, start=1):
         counts[result.verdict] += 1
         if args.quiet or (args.only and result.verdict != args.only):
@@ -63,9 +63,12 @@ def main(argv: list[str] | None = None) -> int:
             print(line.encode("ascii", "replace").decode("ascii"))
 
     total = len(results)
+    incomplete = ""
+    if counts["search incomplete"]:
+        incomplete = f", {counts['search incomplete']} search incomplete"
     print(
         f"\n{total} lines: {counts['unique']} scanned uniquely, "
-        f"{counts['ambiguous']} ambiguous, {counts['unscannable']} unscannable "
+        f"{counts['ambiguous']} ambiguous, {counts['unscannable']} unscannable{incomplete} "
         f"({100.0 * counts['unique'] / total:.1f}% pinned by the metre alone, "
         f"synizesis={args.synizesis})"
     )

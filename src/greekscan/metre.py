@@ -13,7 +13,7 @@ certificate - no authority required.
 
 A reading is a syllabification *and* a foot pattern, because the spelling does
 not always fix the syllable count: two adjacent vowels may be run together by
-synizesis. So the search runs over every reading the spelling allows. The
+synizesis. The search is complete within the candidate-site limit. The
 payoff is that when only one survives, the metre has decided not just the feet
 but whether synizesis applied - and `Result.synizesis` says where.
 """
@@ -23,7 +23,7 @@ from __future__ import annotations
 from itertools import product
 
 from .quantity import EITHER, HEAVY, LIGHT, weights_for
-from .syllable import Syllable, capped_sites, variants
+from .syllable import MAX_SYNIZESIS_SITES, Syllable, capped_sites, syllabify, variants
 
 DACTYL = (HEAVY, LIGHT, LIGHT)
 SPONDEE = (HEAVY, HEAVY)
@@ -114,18 +114,24 @@ class Result:
 
     @property
     def unique(self) -> bool:
-        return len(self.readings) == 1
+        return not self.search_incomplete and len(self.readings) == 1
 
     @property
     def ambiguous(self) -> bool:
-        return len(self.readings) > 1
+        return not self.search_incomplete and len(self.readings) > 1
+
+    @property
+    def search_incomplete(self) -> bool:
+        return self.sites > MAX_SYNIZESIS_SITES
 
     @property
     def unscannable(self) -> bool:
-        return not self.readings
+        return not self.search_incomplete and not self.readings
 
     @property
     def verdict(self) -> str:
+        if self.search_incomplete:
+            return "search incomplete"
         if self.unique:
             return "unique"
         return "ambiguous" if self.ambiguous else "unscannable"
@@ -136,7 +142,12 @@ class Result:
 
     @property
     def reason(self) -> str:
-        """Why an unscannable line failed, as far as can be told cheaply."""
+        """Why a line failed or was not searched, as far as can be told cheaply."""
+        if self.search_incomplete:
+            return (
+                f"too many synizesis sites ({self.sites}; limit {MAX_SYNIZESIS_SITES}); "
+                "search not attempted"
+            )
         if not self.unscannable:
             return ""
         plain = len(self.plain_weights)
@@ -172,6 +183,10 @@ def scan(line: str, synizesis: str = "minimal") -> Result:
     if synizesis not in SYNIZESIS_MODES:
         raise ValueError(f"synizesis must be one of {SYNIZESIS_MODES}, not {synizesis!r}")
 
+    sites = capped_sites(line)
+    if sites > MAX_SYNIZESIS_SITES:
+        return Result(line, [], weights_for(syllabify(line)), sites)
+
     readings_by_merges: dict[int, list[Reading]] = {}
     plain_weights: list[str] = []
     for index, syllables in enumerate(variants(line)):
@@ -194,7 +209,7 @@ def scan(line: str, synizesis: str = "minimal") -> Result:
     else:
         readings = [r for _, group in sorted(readings_by_merges.items()) for r in group]
 
-    return Result(line, readings, plain_weights, capped_sites(line))
+    return Result(line, readings, plain_weights, sites)
 
 
 def scan_all(lines: list[str], synizesis: str = "minimal") -> list[Result]:
